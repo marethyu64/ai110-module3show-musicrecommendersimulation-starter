@@ -17,19 +17,87 @@ Replace this paragraph with your own summary of what your version does.
 
 ## How The System Works
 
-Explain your design in plain language.
+Real-world music recommendation systems like Spotify combine collaborative filtering (analyzing user behavior patterns) with content-based filtering (matching song attributes) to predict preferences, often using machine learning for personalization. My simplified version prioritizes content-based filtering, focusing on numerical audio features to compute similarity scores, as this approach is interpretable and works well for small datasets without requiring user interaction data.
 
-Some prompts to answer:
+### Song Object Features
+- id (unique identifier)
+- title (song name)
+- artist (performer)
+- genre (e.g., pop, lofi, rock)
+- mood (e.g., happy, chill, intense)
+- energy (0-1 scale for intensity)
+- tempo_bpm (beats per minute)
+- valence (0-1 scale for emotional positivity)
+- danceability (0-1 scale for dance suitability)
+- acousticness (0-1 scale for acoustic vs. electronic)
 
-- What features does each `Song` use in your system
-  - For example: genre, mood, energy, tempo
-- What information does your `UserProfile` store
-- How does your `Recommender` compute a score for each song
-- How do you choose which songs to recommend
+### UserProfile Object Features
+- preferred_genre (string, e.g., "pop")
+- preferred_mood (string, e.g., "chill")
+- preferred_energy (float, 0-1)
+- preferred_valence (float, 0-1)
+- preferred_danceability (float, 0-1)
+- preferred_acousticness (float, 0-1)
 
-You can include a simple diagram or bullet list if helpful.
+### Scoring Algorithm Recipe
 
----
+The Recommender uses a **point-weighting strategy** that combines categorical matching (exact matches) with continuous similarity scoring (distance-based):
+
+#### **Base Points (Categorical Matching)**
+- **Genre Match:** +2.0 points
+  - Exact match between user's preferred_genre and song's genre
+  - Rationale: Genre is the strongest indicator of music preference and sets user expectations
+  
+- **Mood Match:** +1.0 point
+  - Exact match between user's preferred_mood and song's mood
+  - Rationale: Mood is important but more flexible than genre (users may listen to pop in different moods)
+
+#### **Continuous Similarity Points**
+- **Energy Similarity:** +2.0 points (max)
+  - Formula: `2.0 × (1 - |user_energy - song_energy|)`
+  - Why: Energy significantly impacts listening experience; close proximity = higher score
+  
+- **Valence Similarity:** +1.5 points (max)
+  - Formula: `1.5 × (1 - |user_valence - song_valence|)`
+  - Why: Emotional tone (positivity) should align with user preference
+  
+- **Danceability Bonus:** +1.0 point (max)
+  - Formula: `song_danceability × 1.0` (applied if user indicates danceability preference)
+  - Why: Nice-to-have bonus for upbeat, groove-oriented tracks
+
+#### **Total Score Calculation**
+```
+TOTAL SCORE = Genre_Points + Mood_Points + Energy_Points + Valence_Points + Danceability_Points
+MAXIMUM POSSIBLE SCORE: 8.5 points
+NORMALIZED SCORE (0-1): Total_Score / 8.5
+```
+
+#### **Output**
+- Songs are scored individually, then sorted by total score in descending order
+- Top K songs (e.g., top 5) are returned as ranked recommendations
+- Each recommendation includes the song's title, artist, score, and relevance explanation
+
+### Expected Biases and Limitations
+
+⚠️ **Over-prioritizes Genre (2.0 vs 1.0 for mood):**
+- The system may ignore excellent songs that match the user's mood but not their genre
+- Example: A user preferring "pop" and "happy" would never see a "rock" song with 0.95 valence, even if it's musically compatible
+- **Mitigation:** Consider reducing genre weight to 1.5 or adding a "genre flexibility" parameter for discovery mode
+
+⚠️ **Binary Genre/Mood Matching:**
+- A song with genre="indie pop" won't match a user with preferred_genre="pop" (exact match only)
+- Real systems use genre hierarchies or similarity measures
+- **Mitigation:** Could implement fuzzy matching or genre families (e.g., "indie pop" ⊂ "pop")
+
+⚠️ **Ignores Implicit Patterns:**
+- The system doesn't learn from user listening history or detect that "pop + happy + high energy" usually works well together
+- It treats each feature independently without interaction effects
+- **Mitigation:** Future improvements could add feature interactions or use collaborative filtering
+
+⚠️ **Small Dataset & Limited Features:**
+- With only 17 songs and 10 attributes, the system cannot capture nuanced preferences
+- Missing features: lyrics, artist, similar artists, release date, user history
+- **Mitigation:** Expand dataset and add temporal/social features
 
 ## Getting Started
 
