@@ -2,62 +2,128 @@
 
 ## 1. Model Name  
 
-**VibeMatcher CLI 1.0** — A command-line music recommender that scores songs based on categorical (genre, mood) and numerical (energy) user preferences.
+**VibeMatcher CLI 1.0**
+
+A simple music recommender you use in the terminal. It suggests songs based on what genre, mood, and energy level you like.
 
 ---
 
-## 2. Intended Use  
+## 2. Goal / Task  
 
-This CLI-first recommender is designed for **classroom exploration and algorithm validation** rather than production music streaming. It assumes users can express their taste as a combination of (1) favorite genre, (2) preferred mood, and (3) target energy level on a 0-1 scale. The system generates ranked lists of top-k song recommendations by scoring each song in the catalog against the user profile. It is intended to teach scoring algorithms, ranking logic, and the practical implications of weighting design choices.
+**What does it do?**
 
----
+The system takes a user's music taste (genre, mood, energy) and ranks all songs in the catalog to find the best matches. The "best" song is the one that scores highest based on how well it matches the user's preferences.
 
-## 3. How the Model Works  
-
-The recommender scores each song by awarding points for categorical matches and numerical closeness: **+2.0 for genre match**, **+1.5 for mood match**, and **0-1.0 for energy closeness** (calculated as max(0, 1 - |song_energy - user_target_energy|)). For example, a pop/happy song with energy 0.82 compared to a user preferring pop/happy/0.8 scores 4.48 (2.0 + 1.5 + 0.98). All songs are then scored, sorted descending, and the top k results are returned with transparent explanations of why each song ranked. The scoring equation is: **final_score = genre_bonus + mood_bonus + energy_component**.
+**Example:** If you say you like pop/happy/high-energy music, the recommender will score pop songs higher than jazz songs, happy songs higher than sad songs, and songs with high energy higher than calm songs.
 
 ---
 
-## 4. Data  
+## 3. Data Used  
 
-The model uses a curated catalog of **17 songs** with attributes: id, title, artist, genre, mood, energy, tempo_bpm, valence, danceability, and acousticness. Genres include pop (2), lofi (3), rock, ambient, jazz, synthwave, indie pop, electronic, country, reggae, blues, metal, and classical. Moods cluster around chill (3), happy (2), and intense (2), with single instances of sad, melancholic, angry, romantic, nostalgic, euphoric, focused, and moody. Energy ranges from 0.25 (Moonlit Serenade) to 0.95 (Raging Fire) with mean 0.61. The dataset was not modified, representing a small teaching corpus rather than a production music library. Notable gaps: no EDM, no reggae/happy combination, very few sad or melancholic songs.
+**How many songs?** 17 songs (small dataset, just for learning).
 
----
+**What information do we have about each song?**
+- Genre (pop, lofi, rock, ambient, jazz, etc.)
+- Mood (chill, happy, intense, sad, relaxed, etc.)
+- Energy level (0 = very calm, 1 = very energetic)
+- Also: title, artist, tempo, danceability, acousticness
 
-## 5. Strengths  
-
-**Intuitive Ranking:** The system produces musically sensible results for "mainstream" profiles. High-Energy Pop users get Sunrise City (perfect match on all three dimensions), Chill Lofi users receive Library Rain and Midnight Coding (both exact mood + genre fits with ideal energy closeness), and Deep Intense Rock users find Storm Runner. **Robustness:** The system gracefully handles edge cases like unknown genres or conflicting preferences without crashing; the energy-closeness component provides a fallback ranking mechanism. **Transparency:** Every recommendation includes explicit breakdown of scoring reasons ("genre match +2.0, mood match +1.5, energy closeness +0.98"), enabling users to understand the algorithmic decision. **Sensitivity Testing:** Experimental weight shifts proved the original weighting is stable and balanced; doubling energy and halving genre caused unintended flips, validating the design.  
-
----
-
-## 6. Limitations and Bias 
-
-Where the system struggles or behaves unfairly. 
-
-**Critical Limitation: Small Dataset Creates Rare-Mood Filter Bubble**
-
-The recommender system exhibits a significant bias toward frequently-occurring moods due to the small dataset size (17 songs with highly imbalanced mood distribution). Specifically, chill mood appears 3 times while romantic, nostalgic, angry, and sad moods each appear only once. This means users with preferences for underrepresented moods (e.g., users who like romantic or angry music) will almost never receive the +1.5 mood match bonus, resulting in systematically lower recommendation scores compared to chill/happy preference users. Additionally, when a user requests a genre not present in the catalog (such as EDM or progressive-metal), they never achieve the +2.0 genre match bonus regardless of other quality factors, creating an "invisible penalty" for minority taste profiles. The energy-gap calculation also inadvertently favors moderate-energy users; the dataset mean energy is 0.61, so users seeking very low energy songs (0.1-0.3) will find fewer close matches in the catalog, while high-energy preferences (0.8+) benefit from better dataset coverage. Users with rare combinations (e.g., metal + chill) are effectively ignored because these pairings don't exist in the training data.
+**Dataset limits:**
+- Lofi appears 3 times, but sad/angry/romantic appear only 1 time each
+- No EDM or K-pop in the dataset
+- Some mood + genre combinations don't exist (e.g., no reggae/happy song)
 
 ---
 
-## 7. Evaluation  
+## 4. Algorithm Summary  
 
-Tested six distinct user profiles: (1) High-Energy Pop (baseline), (2) Chill Lofi (niche low-energy), (3) Deep Intense Rock (contrasting intensity), (4) Contradictory Profile with high energy + sad mood (stress test), (5) Unknown-Genre edge case (robustness test), and (6) Ambient Relaxation (genre-mood mismatch recovery). For each profile, verified that top-5 results matched musical intuition: pop/happy preferrers got pop songs, lofi fans got lofi songs, rock fans got rock. Confirmed that different profiles produced different top-1 winners (Sunrise City, Library Rain, Storm Runner, Gym Hero, etc.), proving the system isn't dominated by dataset size quirks. Ran sensitivity experiment by doubling energy weight and halving genre weight; original rankings remained stable, confirming robust weighting. Verified graceful degradation: the contradictory and unknown-genre profiles still produced ranked output rather than errors.
+**How does it score songs? (in plain language, no code)**
+
+For each song, we add up points:
+- **+2.0 points** if the song's genre matches the user's favorite genre
+- **+1.5 points** if the song's mood matches the user's favorite mood  
+- **0 to +1.0 points** based on how close the song's energy is to the user's target energy
+
+Then we sort songs from highest to lowest score and return the top recommendations.
+
+**Simple example:** A pop/happy song with energy 0.82 is compared to a user who wants pop/happy/0.8:
+- Genre match? Yes → +2.0
+- Mood match? Yes → +1.5
+- Energy closeness? 0.82 vs 0.8 (very close) → +0.98
+- **Total score: 4.48** (very good match!)
 
 ---
 
-## 8. Future Work  
+## 5. Observed Behavior / Biases  
 
-**Expand dataset** to include hundreds of songs covering underrepresented genres (EDM, K-pop, metal) and rare mood-genre combinations to reduce filter-bubble risk. **Add more scoring dimensions** like danceability, valence (positivity), and acousticness to enable richer preference expression. **Implement diversity penalties** so that top-k results don't all come from the same artist or genre, providing more exploration. **Build user feedback loop** allowing users to rate recommendations and adjust weights (e.g., "I love this but want more variety" could reduce genre weight). **Develop cold-start heuristics** for new genres and moods with single samples by considering feature-space neighbors. **Create preference elicitation UI** so users can explore the weighting tradeoffs interactively (e.g., sliders for genre/mood/energy importance) rather than submitting fixed dictionaries.  
+**The main problem we found: Rare Moods Get Ignored**
+
+Since our dataset has only 1 sad song but 3 chill songs, users who like sad/angry/romantic music get systematically lower scores than users who like chill/happy music. A sad-music lover will rarely earn the +1.5 mood bonus, while chill-music lovers earn it almost every time.
+
+**Other biases:**
+- If you ask for a genre not in the dataset (like EDM), you can never get the +2.0 genre bonus
+- The dataset's average energy is 0.61 (moderate), so very calm or very energetic users have fewer good matches
+- Some combinations don't exist (metal + chill), so those users get worse recommendations
+
+---
+
+## 6. Evaluation Process  
+
+**How did we test it?**
+
+We created 6 different user profiles and ran the recommender on each:
+1. High-Energy Pop (standard preference)
+2. Chill Lofi (low-energy preference)
+3. Deep Intense Rock (contrasting preference)
+4. Contradictory Profile (high energy + sad mood = conflicting)
+5. Unknown Genre (requested a genre not in dataset)
+6. Ambient Relaxation (niche combination)
+
+**What did we check?**
+- Do the top results feel right? (Yes, pop users got pop songs, lofi users got lofi, etc.)
+- Do different profiles get different winners? (Yes—Sunrise City, Library Rain, Storm Runner, etc.)
+- Does it break on weird inputs? (No, it handles unknown genres gracefully)
+
+**Sensitivity experiment:** We doubled the energy weight and halved the genre weight. Rankings stayed mostly stable, which proved our original weights were solid.
+
+---
+
+## 7. Intended Use and Non-Intended Use  
+
+**What it's DESIGNED for:**
+- Teaching students how scoring algorithms work
+- Exploring how weighting choices affect recommendations
+- Testing edge cases and biases in naive algorithms
+- Small classroom projects
+
+**What it's NOT designed for:**
+- Real music streaming apps (too small and biased)
+- Making business decisions about music curation  
+- Recommending music to millions of actual users
+- Handling complex or nuanced user preferences
+
+---
+
+## 8. Ideas for Improvement  
+
+**What we'd add if we kept building this:**
+
+1. **Bigger dataset:** Include 1,000+ songs with balanced genres/moods. This would fix the rare-mood filter bubble.
+
+2. **More features:** Use danceability, valence (positivity), and acousticness in the scoring. Let users control which features matter most.
+
+3. **Diversity:** Make sure the top-5 results don't all come from the same genre or artist. Give variety!
 
 ---
 
 ## 9. Personal Reflection  
 
-A few sentences about your experience.  
+**What we learned:**
 
-Prompts:  
+This project showed us that small datasets create hidden biases you don't notice at first. We thought our system was fair, but it actually favored users with mainstream tastes (pop, happy, chill) over users with niche tastes (sad, metal, very low energy).
 
-- What you learned about recommender systems  
-- Something unexpected or interesting you discovered  
-- How this changed the way you think about music recommendation apps  
+**The surprising part:** Doubling the energy weight didn't just shift scores—it actually changed which songs won! This proved our weighting choices are really important. Small tweaks create big differences.
+
+**How it changed our thinking:** When we use Spotify or Netflix, there's probably bias hidden in their data too. If their dataset has 10× more pop songs, pop lovers will always win. Fair AI isn't just about the algorithm—it's about the data we feed it.
+
+---  
