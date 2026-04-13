@@ -77,6 +77,15 @@ NORMALIZED SCORE (0-1): Total_Score / 8.5
 - Top K songs (e.g., top 5) are returned as ranked recommendations
 - Each recommendation includes the song's title, artist, score, and relevance explanation
 
+![alt text](<Screenshot 2026-04-12 at 9.36.40 PM.png>)
+
+![alt text](image-1.png)
+
+
+
+
+![alt text](image.png)
+
 ### Expected Biases and Limitations
 
 ⚠️ **Over-prioritizes Genre (2.0 vs 1.0 for mood):**
@@ -160,14 +169,48 @@ You will go deeper on this in your model card.
 
 ## Reflection
 
-Read and complete `model_card.md`:
+### What I Learned During This Project
 
-[**Model Card**](model_card.md)
+**My biggest learning moment** happened when I tested six different user profiles and discovered that my system was biased without intending to be. I thought the algorithm would be neutral, but then I realized: if the dataset has 3 chill songs and only 1 sad song, anyone who likes sad music will get systematically worse recommendations. That's not a code bug—that's a data problem. **The bias lived in the dataset, not the algorithm.** Once I understood this, I started thinking about Spotify and Netflix differently: they probably have the same problem, just hidden in their millions of songs.
 
-Write 1 to 2 paragraphs here about what you learned:
+The other big surprise was how **doubling the energy weight and halving the genre weight changed which songs won.** I expected small tweaks to cause small score changes. Instead, "Spacewalk Thoughts" stopped winning for Ambient/Relaxation users and "Coffee Shop Stories" jumped to #1. This taught me that weighting choices aren't just about numbers—they shape the entire user experience. Small design decisions have huge impacts.
 
-- about how recommenders turn data into predictions
-- about where bias or unfairness could show up in systems like this
+### How AI Tools Helped (And When I Had to Double-Check)
+
+I asked Copilot to help write the `load_songs()` function and it generated solid, working code on the first try. **It saved me from writing boilerplate CSV parsing by hand.** The scoring logic I wrote myself, though, because I wanted to understand the math deeply—I knew exactly where each +2.0 and +1.5 came from.
+
+**I had to double-check three things:**
+1. **The energy closeness formula:** I asked Copilot "why use `max(0, 1 - |diff|)` instead of just `1 - |diff|`?" It explained that the max prevents negative scores (good point), but I manually tested it anyway to feel confident.
+2. **Whether `.sort()` modified the list in-place vs `sorted()` creating a new one.** The AI explained it correctly, but I tested both versions in terminal to verify behavior.
+3. **The main.py relative imports.** When `from recommender import` broke, Copilot suggested `from .recommender import`, and it worked—but I had to run the code myself to confirm.
+
+**The lesson:** AI is great for scaffolding and explanations, but I needed to actually execute and test everything. Trust but verify.
+
+### What Surprised Me About Simple Algorithms
+
+Here's the thing: I expected a system this simple to feel broken or obviously fake. **Instead, the recommendations felt real.** When I asked for pop/happy/high-energy, it returned "Sunrise City" which actually IS pop/happy/high-energy. When I asked for chill lofi, it returned two lofi songs that are genuinely chill. 
+
+**This surprised me because 3 weighted numbers somehow captured enough of music taste to feel right.** No machine learning, no neural networks, no analysis of what millions of users listened to. Just: does genre match? (+2.0). Does mood match? (+1.5). How close is energy? (+0-1.0). **That's it.** Yet it worked.
+
+This made me realize that maybe complexity isn't always necessary—sometimes the simplest solution is the best. But it also made me realize the dangers: this simple system *feels* authoritative even though it only considers 3 features. A user might trust it more than it deserves.
+
+### What I'd Try Next If I Extended This
+
+1. **Add serendipity / randomness:** Right now it's purely deterministic (same input = same output forever). Real recommendations need surprise. I'd add a 10% chance to suggest a song outside the top-5 just to help users discover new music.
+
+2. **Implement feedback loops:** Let users say "I hated this recommendation" or "loved it," and gradually adjust the weights. Spotify probably does something like this. My version could learn that pop users actually want indie pop, or that high-energy users sometimes want sad stories.
+
+3. **Fix the rare-mood problem:** Expand the dataset to 500+ songs with balanced moods. Or use fuzzy matching—if a user asks for "metal" and no metal songs exist, suggest songs that share metal's energy/intensity profile even if they're rock.
+
+4. **Add a "diversity mode"**: Make sure the top-5 don't all come from the same artist. Real Spotify does this. My version could penalize recommendations that repeat artists: "You already got 2 Neon Echo songs, here's something different."
+
+---
+
+## Further Reading
+
+Read and complete **[Model Card](model_card.md)** for a deeper dive into strengths, limitations, and bias analysis.
+
+In that model card, look especially at **Section 6 (Limitations and Bias)** which documents the rare-mood filter bubble and explains how the energy distribution in the dataset inadvertently favors moderate-energy users.
 
 
 ---
